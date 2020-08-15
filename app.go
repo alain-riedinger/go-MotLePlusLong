@@ -114,6 +114,18 @@ func main() {
 	}
 }
 
+func findSolution(mot *Mot, dico map[[14]byte][]string, plaques string, sol chan *Solution) {
+	// Initialize the recursive search root structure
+	solution := NewSolution()
+	solution.Current = plaques
+
+	// Start the recursive resolution
+	found := mot.SolveTirage(dico, *solution)
+
+	// Send solution to the channel, while execution in parallel
+	sol <- found
+}
+
 func newGame(dico map[[14]byte][]string, previous int, chars int, seconds int) int {
 	nbVoyelles := promptVoyelles(previous)
 	mot := NewMot()
@@ -129,12 +141,14 @@ func newGame(dico map[[14]byte][]string, previous int, chars int, seconds int) i
 	// Wait for some seconds of think time
 	countup(chars, seconds)
 
+	// Solution is searched during chrono time (it's shorter so no cheating)
+	sol := make(chan *Solution)
+	go findSolution(mot, dico, plaques, sol)
+	found := <-sol
+	close(sol)
+
 	prompt("Want a solution ?")
 
-	// Initialize the recursive search root structure
-	solution := NewSolution()
-	solution.Current = plaques
-	found := mot.SolveTirage(dico, *solution)
 	if found != nil {
 		fmt.Printf("Best words found of: %d letters\n", found.BestLen)
 		for _, w := range found.Best {
